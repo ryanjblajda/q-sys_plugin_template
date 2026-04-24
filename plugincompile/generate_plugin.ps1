@@ -5,8 +5,7 @@ param(
 
 $baseDirs = @(
     (Join-Path $PSScriptRoot "..\plugin_parts"),
-    (Join-Path $PSScriptRoot "..\modules"),
-    (Join-Path $PSScriptRoot "..\children")
+    (Join-Path $PSScriptRoot "..\modules")
 )
 
 $seen = @{}
