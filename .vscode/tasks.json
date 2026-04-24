@@ -28,9 +28,14 @@
     },
     {
       "label": "Build Plugin",
-      "type": "process",
-      "command": "${workspaceFolder}\\plugincompile\\generate_plugin.bat",
+      "type": "shell",
+      "command": "powershell.exe",
       "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\plugincompile\\generate_plugin.ps1",
         "${workspaceFolder}\\plugin.lua",
         "${workspaceFolder}\\output\\${workspaceFolderBasename}.qplug"
       ]
