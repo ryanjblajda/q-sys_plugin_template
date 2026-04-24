@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "versionType",
+      "type": "pickString",
+      "description": "Version bump type",
+      "options": ["major", "minor", "patch", "build"],
+      "default": "patch"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Bump Version",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\plugincompile\\increment_version.ps1",
+        "${workspaceFolder}\\plugin_parts\\info.lua",
+        "${input:versionType}"
+      ],
+      "options": {
+      }
+    },
+    {
+      "label": "Build Plugin",
+      "type": "process",
+      "command": "${workspaceFolder}\\plugincompile\\generate_plugin.bat",
+      "args": [
+        "${workspaceFolder}\\plugin.lua",
+        "${workspaceFolder}\\output\\${workspaceFolderBasename}.qplug"
+      ]
+    },
+    {
+      "label": "Generate UUID",
+      "type": "shell",
+      "command":"powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\plugincompile\\ensure_uuid.ps1",
+        "${workspaceFolder}\\plugin_parts\\info.lua",
+        "${workspaceFolder}\\plugincompile\\uuidgen.exe"
+      ]
+    },
+    {
+      "label": "Build Full (Version + Compile)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Generate UUID",
+        "Bump Version",
+        "Build Plugin",
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

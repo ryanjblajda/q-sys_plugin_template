@@ -1,0 +1,1 @@
+print(string.format("Plugin: %s | Initializing...", GetPrettyName()))
