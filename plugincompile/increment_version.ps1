@@ -5,67 +5,72 @@ param(
 
 $content = Get-Content $File -Raw
 
-# ---- VERSION MATCH ----
+# ---- VERSION ----
 if ($content -notmatch 'Version\s*=\s*["''](\d+)\.(\d+)\.(\d+)["'']') {
-    throw "No Version = X.Y.Z found in $File"
+    throw "No Version found in $File"
 }
 
 $major = [int]$matches[1]
 $minor = [int]$matches[2]
 $patch = [int]$matches[3]
 
-# ---- BUILD MATCH (optional) ----
-$buildMatch = [regex]::Match($content, 'Build(?:Version)?\s*=\s*["'']?(\d+)["'']?')
-if ($buildMatch.Success) {
-    $build = [int]$buildMatch.Groups[1].Value
+# ---- BUILD VERSION (always integer string) ----
+if ($content -match 'BuildVersion\s*=\s*["''](\d+)["'']') {
+    $buildVersion = [int]$matches[1]
 } else {
-    $build = 0
+    $buildVersion = 0
 }
 
+# ---- semantic versioning ----
 switch ($Mode) {
-
     "major" {
         $major++
         $minor = 0
         $patch = 0
-        $build++
     }
 
     "minor" {
         $minor++
         $patch = 0
-        $build++
     }
 
     "patch" {
         $patch++
-        $build++
     }
 
     "build" {
-        $build++
-    }
-
-    default {
-        throw "Mode must be: major, minor, patch, build"
+        # no version change
     }
 }
+
+# ---- ALWAYS increment BuildVersion ----
+$buildVersion++
 
 $newVersion = "$major.$minor.$patch"
 
-# ---- WRITE VERSION ----
-$content = $content -replace 'Version\s*=\s*["'']\d+\.\d+\.\d+["'']', "Version = `"$newVersion`""
+Write-Host "Version: $newVersion | BuildVersion: $buildVersion"
 
-# ---- WRITE BUILD ----
-if ($content -match 'BuildVersion') {
-    $content = $content -replace 'BuildVersion\s*=\s*["'']?\d+["'']?', "BuildVersion = `"$build`""
+# ---- replace Version ----
+$content = [regex]::Replace(
+    $content,
+    'Version\s*=\s*["'']\d+\.\d+\.\d+["'']',
+    "Version = `"$newVersion`""
+)
+
+# ---- replace BuildVersion ----
+if ($content -match 'BuildVersion\s*=') {
+
+    $content = [regex]::Replace(
+        $content,
+        'BuildVersion\s*=\s*["'']?\d+["'']?',
+        "BuildVersion = `"$buildVersion`""
+    )
+
 } else {
-    # optional fallback
-    $content = $content -replace 'Version\s*=\s*".*?"', "Version = `"$newVersion`",`n  BuildVersion = `"$build`""
+
+    $content = $content -replace
+        '(Version\s*=\s*["'']\d+\.\d+\.\d+["''],?)',
+        "`$1`n  BuildVersion = `"$buildVersion`","
 }
 
-Set-Content $File $content
-
-Write-Host "Updated:"
-Write-Host "  Version: $newVersion"
-Write-Host "  Build:   $build"
+Set-Content -Path $File -Value $content -NoNewline
