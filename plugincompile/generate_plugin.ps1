@@ -1,38 +1,62 @@
 param(
     [string]$Entry,
-    [string]$Out,
-    [string]$Base = "plugin_parts"
+    [string]$Output
+)
+
+$baseDirs = @(
+    (Join-Path $PSScriptRoot "..\plugin_parts"),
+    (Join-Path $PSScriptRoot "..\modules"),
+    (Join-Path $PSScriptRoot "..\children")
 )
 
 $seen = @{}
 
-function Inline($text) {
-    return [regex]::Replace($text, 'require\s*\(\s*["''](.+?)["'']\s*\)', {
-        param($m)
+function Resolve-ModulePath($name) {
+    foreach ($dir in $baseDirs) {
 
-        $mod = $m.Groups[1].Value
+        $candidates = @(
+            (Join-Path $dir "$name.lua"),
+            (Join-Path $dir "$name\init.lua")
+        )
 
-        if ($seen.ContainsKey($mod)) {
-            return "-- skipped duplicate require: $mod"
+        foreach ($c in $candidates) {
+            if (Test-Path $c) {
+                return $c
+            }
         }
-
-        $seen[$mod] = $true
-
-        $file = Join-Path $Base ($mod + ".lua")
-
-        if (!(Test-Path $file)) {
-            throw "Missing module: $file"
-        }
-
-        $content = Get-Content $file -Raw
-
-        return "`n-- BEGIN $mod`n" + (Inline $content) + "`n-- END $mod`n"
-    })
+    }
+    return $null
 }
 
-$root = Get-Content $Entry -Raw
-$result = Inline $root
+function Inline($filePath) {
 
-Set-Content $Out $result
+    if ($seen[$filePath]) { return "" }
+    $seen[$filePath] = $true
 
-Write-Host "Built $Out"
+    $text = Get-Content $filePath -Raw
+
+    # find requires
+    $pattern = 'require\s*\(\s*["''](.+?)["'']\s*\)'
+
+    while ($text -match $pattern) {
+
+        $mod = $matches[1]
+        $modPath = Resolve-ModulePath $mod
+
+        if (-not $modPath) {
+            throw "Could not resolve module: $mod"
+        }
+
+        $replacement = Inline $modPath
+
+        $text = $text -replace "require\(\s*['""]$mod['""]\s*\)", $replacement
+    }
+
+    return $text
+}
+
+$result = Inline $Entry
+
+Set-Content $Output $result
+
+Write-Host "Built $Output"
